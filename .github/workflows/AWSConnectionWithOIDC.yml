@@ -1,3 +1,5 @@
+# For the provider URL : https://token.actions.githubusercontent.com
+# For the "Audience" : sts.amazonaws.com
 name: AWS OIDC Connect Demo
 
 on:
@@ -10,8 +12,8 @@ env:
   AWS_REGION: us-east-1
 
 permissions:
-  id-token: write
-  contents: read
+  id-token: write   # lets the workflow request the JWT from GitHub
+  contents: read    # lets actions/checkout download the repo
 
 jobs:
   DemoOIDC:
@@ -19,14 +21,6 @@ jobs:
     steps:
       - name: Git clone the repository
         uses: actions/checkout@v4
-
-      - name: Show OIDC claims (debug)
-        run: |
-          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
-          PAYLOAD=$(echo "$TOKEN" | cut -d. -f2 | tr '_-' '/+')
-          while [ $(( ${#PAYLOAD} % 4 )) -ne 0 ]; do PAYLOAD="${PAYLOAD}="; done
-          echo "$PAYLOAD" | base64 -d | jq '{iss, aud, sub}'
 
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -37,3 +31,6 @@ jobs:
 
       - name: Print assumed role
         run: aws sts get-caller-identity
+
+      - name: Read SSM parameter
+        run: aws ssm get-parameter --name hello_aws-gh-oidc --query Parameter.Value --output text
